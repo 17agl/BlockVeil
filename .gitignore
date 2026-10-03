@@ -1,0 +1,99 @@
+# =========================
+# ENVIRONMENT / SECRETS
+# =========================
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# PYTHON
+# =========================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+.venv/
+venv/
+env/
+
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# =========================
+# FASTAPI / PYTHON LOCAL
+# =========================
+
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# NODE / REACT
+# =========================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# BUILD FILES
+# =========================
+
+dist/
+build/
+.vite/
+
+# =========================
+# IDE / EDITOR
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+# OS FILES
+# =========================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# LOGS
+# =========================
+
+*.log
+
+# =========================
+# TEMPORARY FILES
+# =========================
+
+*.tmp
+*.temp
+
+# =========================
+# PYTHON NOTEBOOKS
+# =========================
+
+.ipynb_checkpoints/
+
+# =========================
+# TEST / COVERAGE
+# =========================
+
+.coverage
+htmlcov/
+.pytest_cache/
+
+# =========================
+# GENERATED FILES
+# =========================
+
+*.zip
+*.tar
+*.gz
