@@ -1,18 +1,32 @@
 import { useState } from "react";
 
-function AddressInput({ onAnalyze, loading }) {
 
-  const [address, setAddress] = useState("");
+function AddressInput({
+  onAnalyze,
+  loading
+}) {
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const [address, setAddress] =
+    useState("");
 
-    if (!address.trim()) {
-      return;
-    }
 
-    onAnalyze(address.trim());
-  };
+  const handleSubmit =
+    (event) => {
+
+      event.preventDefault();
+
+      const cleanAddress =
+        address.trim();
+
+      if (!cleanAddress || loading) {
+        return;
+      }
+
+      onAnalyze(
+        cleanAddress
+      );
+    };
+
 
   return (
     <form
@@ -22,32 +36,53 @@ function AddressInput({ onAnalyze, loading }) {
 
       <div className="input-wrapper">
 
-        <span className="input-icon">
-          ₿
-        </span>
+        <label htmlFor="bitcoin-address">
+          Bitcoin Address
+        </label>
 
         <input
+          id="bitcoin-address"
+
           type="text"
+
           value={address}
+
           onChange={(event) =>
-            setAddress(event.target.value)
+            setAddress(
+              event.target.value
+            )
           }
-          placeholder="Enter a Bitcoin address..."
+
+          placeholder="Enter a public Bitcoin address"
+
           disabled={loading}
+
+          autoComplete="off"
         />
 
       </div>
 
+
       <button
         type="submit"
+
         className="analyze-button"
-        disabled={loading || !address.trim()}
+
+        disabled={
+          loading ||
+          !address.trim()
+        }
       >
-        {loading ? "Analyzing..." : "Analyze"}
+
+        {loading
+          ? "Analyzing..."
+          : "Analyze"}
+
       </button>
 
     </form>
   );
 }
+
 
 export default AddressInput;

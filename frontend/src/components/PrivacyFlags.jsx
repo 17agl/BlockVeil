@@ -1,96 +1,78 @@
-function PrivacyFlags({ flags }) {
-
-  const visibleFlags = flags.filter(
-    (flag) => flag.detected
-  );
+function PrivacyFlags({ flags = [] }) {
+  const detectedFlags = flags.filter((flag) => flag.detected);
 
   return (
     <div className="flags-card">
-
-      <div className="card-heading">
-        <div>
-          <p className="section-label">
-            PRIVACY ANALYSIS
-          </p>
-
-          <h2>Detected Patterns</h2>
-        </div>
-
-        <span className="flag-count">
-          {visibleFlags.length} detected
-        </span>
+      <div className="card-header">
+        <p className="section-label">PRIVACY FINDINGS & EVIDENCE</p>
+        <h2>Detected Heuristic Patterns</h2>
       </div>
 
-      {visibleFlags.length === 0 ? (
-
+      {detectedFlags.length === 0 ? (
         <div className="no-flags">
-          <span>✓</span>
-
+          <div className="no-flags-icon">✓</div>
           <div>
-            <strong>
-              No privacy flags detected
-            </strong>
-
+            <strong>No privacy vulnerability signals detected</strong>
             <p>
-              None of the current heuristic
-              rules were triggered.
+              The analyzer did not detect receiving address reuse, multi-input co-spending, or round payment patterns for this address.
             </p>
           </div>
         </div>
-
       ) : (
-
         <div className="flags-list">
+          {detectedFlags.map((flag, index) => (
+            <div className="flag-item" key={flag.rule || index}>
+              <div className="flag-top">
+                <div className="flag-title-group">
+                  <span className="flag-icon">⚠️</span>
+                  <strong>{flag.title || flag.rule}</strong>
+                </div>
 
-          {visibleFlags.map((flag) => (
-
-            <div
-              className={`flag-item ${flag.severity}`}
-              key={flag.rule}
-            >
-
-              <div className="flag-icon">
-                {flag.severity === "high"
-                  ? "!"
-                  : "⚠"}
+                <div className="badge-group">
+                  <span className={`severity ${flag.severity}`}>
+                    Severity: {flag.severity}
+                  </span>
+                  {flag.confidence && (
+                    <span className={`confidence ${flag.confidence}`}>
+                      Confidence: {flag.confidence}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flag-content">
+              <p className="flag-message">{flag.message}</p>
 
-                <strong>
-                  {formatRuleName(flag.rule)}
-                </strong>
+              {flag.why_detected && flag.why_detected.length > 0 && (
+                <div className="why-detected-box">
+                  <div className="box-subtitle">WHY WAS THIS DETECTED? (EVIDENCE)</div>
+                  <ul className="evidence-list">
+                    {flag.why_detected.map((reason, idx) => (
+                      <li key={idx}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-                <p>
-                  {flag.message}
-                </p>
+              {flag.mitigation && (
+                <div className="mitigation-box">
+                  <span className="mitigation-icon">💡</span>
+                  <div>
+                    <strong>How to mitigate:</strong> {flag.mitigation}
+                  </div>
+                </div>
+              )}
 
-              </div>
-
+              {flag.details && (
+                <div className="flag-details">
+                  <small>{flag.details}</small>
+                </div>
+              )}
             </div>
-
           ))}
-
         </div>
-
       )}
-
     </div>
   );
 }
-
-
-function formatRuleName(rule) {
-
-  return rule
-    .split("_")
-    .map(
-      word =>
-        word.charAt(0).toUpperCase() +
-        word.slice(1)
-    )
-    .join(" ");
-}
-
 
 export default PrivacyFlags;

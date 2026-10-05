@@ -3,152 +3,191 @@ import { useState } from "react";
 import AddressInput from "../components/AddressInput";
 import PrivacyScore from "../components/PrivacyScore";
 import PrivacyFlags from "../components/PrivacyFlags";
+import PrivacyIndicator from "../components/PrivacyIndicator";
+import PrivacyTimeline from "../components/PrivacyTimeline";
+import AddressRelationshipGraph from "../components/AddressRelationshipGraph";
+import PrivacySimulator from "../components/PrivacySimulator";
+import PrivacyRecommendations from "../components/PrivacyRecommendations";
+import PrivacyCategoryRadar from "../components/PrivacyCategoryRadar";
+import NetworkStatusWidget from "../components/NetworkStatusWidget";
+import ReportExporter from "../components/ReportExporter";
 import TransactionList from "../components/TransactionList";
 import Loading from "../components/Loading";
 
-import { analyzeAddress } from "../services/api";
+import { analyzeAddress, explainPrivacy } from "../services/api";
 
-
-function PrivacyChecker() {
-
+function PrivacyChecker({ onAnalysisComplete }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiSources, setAiSources] = useState([]);
   const [error, setError] = useState("");
-
+  const [aiError, setAiError] = useState("");
 
   const handleAnalyze = async (address) => {
-
     setLoading(true);
     setError("");
     setReport(null);
+    setAiExplanation("");
+    setAiSources([]);
+    setAiError("");
 
     try {
-
-      const result =
-        await analyzeAddress(address);
-
+      const result = await analyzeAddress(address);
       setReport(result);
 
-    } catch (error) {
-
-      setError(
-        error.message ||
-        "Unable to analyze address."
-      );
-
+      if (onAnalysisComplete) {
+        onAnalysisComplete(result);
+      }
+    } catch (err) {
+      setError(err.message || "Unable to analyze address.");
     } finally {
-
       setLoading(false);
-
     }
   };
 
+  const handleExplain = async () => {
+    if (!report || aiLoading) return;
+
+    setAiLoading(true);
+    setAiError("");
+    setAiExplanation("");
+    setAiSources([]);
+
+    try {
+      const result = await explainPrivacy(report);
+      setAiExplanation(result.explanation);
+      setAiSources(result.sources || []);
+    } catch (err) {
+      setAiError(err.message || "Unable to generate AI explanation.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const addressInfo = report?.address_info || {};
 
   return (
     <main className="page">
-
       <div className="page-header">
-
-        <div>
-          <p className="section-label">
-            BITCOIN PRIVACY
-          </p>
-
-          <h1>
-            Privacy Checker
-          </h1>
-
-          <p>
-            Analyze publicly available Bitcoin
-            transaction activity for common
-            privacy patterns.
-          </p>
-        </div>
-
+        <p className="section-label">BITCOIN PRIVACY ENGINE</p>
+        <h1>Address Privacy Checker & Investigation Suite</h1>
+        <p>
+          Comprehensive analysis of public Bitcoin addresses: heuristics, co-spending graph, historical timeline, and interactive What-If simulator.
+        </p>
       </div>
 
+      <NetworkStatusWidget />
 
       <div className="warning-banner">
-
-        <span>ⓘ</span>
-
-        <p>
-          <strong>Read-only analysis.</strong>{" "}
-          This tool never asks for or handles
-          private keys, seed phrases, or wallet
-          credentials.
-        </p>
-
+        <strong>🛡️ Privacy Security Notice</strong>
+        <span>
+          Only enter a public Bitcoin address (e.g. 1..., 3..., bc1q..., bc1p...). Never submit private keys or seed phrases!
+        </span>
       </div>
 
+      <div className="analyzer-card">
+        <AddressInput onAnalyze={handleAnalyze} loading={loading} />
 
-      <section className="analyzer-card">
+        {loading && <Loading />}
 
-        <h2>
-          Analyze a Bitcoin Address
-        </h2>
+        {error && <div className="error-box">⚠️ {error}</div>}
 
-        <p>
-          Enter a public Bitcoin address to
-          inspect its observable transaction
-          history.
-        </p>
+        {report && !loading && (
+          <div className="results">
+            <div className="address-header-card">
+              <div className="address-main-info">
+                <span className="info-label">ANALYZED PUBLIC ADDRESS</span>
+                <code className="address-code">{report.address}</code>
+              </div>
 
-        <AddressInput
-          onAnalyze={handleAnalyze}
-          loading={loading}
-        />
+              <div className="address-meta-chips">
+                <span className="meta-chip format">Format: {addressInfo.format || "Standard"}</span>
+                <span className="meta-chip script">Script: {addressInfo.script_type || "N/A"}</span>
+                <span className="meta-chip network">Network: {addressInfo.network || "Bitcoin Mainnet"}</span>
+              </div>
+            </div>
 
-      </section>
+            <ReportExporter report={report} />
 
+            <PrivacyScore
+              score={report.score}
+              rating={report.rating}
+              scoreBreakdown={report.score_breakdown || []}
+            />
 
-      {loading && <Loading />}
+            <PrivacyCategoryRadar categoryScores={report.category_scores || {}} />
 
+            <PrivacyIndicator flags={report.flags || []} />
 
-      {error && (
+            <PrivacyFlags flags={report.flags || []} />
 
-        <div className="error-box">
-          <strong>Analysis failed</strong>
-          <p>{error}</p>
-        </div>
+            <PrivacyRecommendations recommendations={report.recommendations || []} />
 
-      )}
+            <PrivacySimulator report={report} />
 
+            <PrivacyTimeline timeline={report.timeline || []} />
 
-      {report && !loading && (
+            <AddressRelationshipGraph graph={report.relationship_graph || { nodes: [], edges: [] }} />
 
-        <div className="results">
+            <TransactionList
+              count={report.transaction_count}
+              transactions={report.transactions || []}
+            />
 
-          <div className="address-result">
+            <div className="ai-explanation-card">
+              <div className="ai-explanation-header">
+                <div>
+                  <p className="section-label">GROUNDED AI INVESTIGATION</p>
+                  <h2>Explainable Privacy Analysis & Evidence</h2>
+                  <p>
+                    Generate a grounded AI explanation connecting detected signals to knowledge base concepts.
+                  </p>
+                </div>
 
-            <span>Analyzed address</span>
+                <button
+                  className="ai-explain-button"
+                  onClick={handleExplain}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? "Analyzing Evidence..." : "✦ Explain Findings with AI"}
+                </button>
+              </div>
 
-            <code>
-              {report.address}
-            </code>
+              {aiError && <div className="error-box">⚠️ {aiError}</div>}
 
+              {aiLoading && (
+                <div className="ai-loading">
+                  <span className="typing-dot">.</span> Analyzing blockchain privacy signals and retrieving knowledge base sources...
+                </div>
+              )}
+
+              {aiExplanation && (
+                <div className="ai-response">
+                  <div className="ai-response-label">🤖 AI INVESTIGATION REPORT & FINDINGS</div>
+                  <div className="ai-response-text" style={{ whiteSpace: "pre-wrap" }}>
+                    {aiExplanation}
+                  </div>
+
+                  {aiSources.length > 0 && (
+                    <div className="ai-sources">
+                      <div className="ai-sources-title">GROUNDED KNOWLEDGE SOURCES</div>
+                      <div className="sources-chips">
+                        {aiSources.map((source) => (
+                          <div className="ai-source" key={source.path}>
+                            📄 {source.title || source.path} (Relevance: {source.score})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-
-
-          <PrivacyScore
-            score={report.score}
-            rating={report.rating}
-          />
-
-
-          <PrivacyFlags
-            flags={report.flags}
-          />
-
-
-          <TransactionList
-            count={report.transaction_count}
-          />
-
-        </div>
-
-      )}
-
+        )}
+      </div>
     </main>
   );
 }
