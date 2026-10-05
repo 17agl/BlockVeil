@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { askAssistant } from "../services/api";
 
 const ANALYSIS_QUESTIONS = [
@@ -20,11 +20,114 @@ const NOSTR_QUESTIONS = [
   "How do Nostr zaps work?"
 ];
 
+function getRecommendedFollowUpQuestions(content = "", activeReport = null) {
+  const c = content.toLowerCase();
+
+  if (c.includes("score") || c.includes("report") || c.includes("address")) {
+    return [
+      "Why was my privacy score deducted?",
+      "Which transaction in my history is riskiest?",
+      "How can I improve my privacy score?"
+    ];
+  }
+  if (c.includes("utxo")) {
+    return [
+      "What is Multi-Input Co-Spending (CIOH)?",
+      "How do I practice Coin Control in wallets?",
+      "How do transaction fees affect UTXOs?"
+    ];
+  }
+  if (c.includes("psbt")) {
+    return [
+      "How do hardware wallets sign PSBTs?",
+      "What is CoinJoin vs PayJoin?",
+      "How to use multi-sig with PSBT?"
+    ];
+  }
+  if (c.includes("reuse")) {
+    return [
+      "How do HD wallets generate new addresses?",
+      "What is the penalty for address reuse?",
+      "How do I avoid address reuse in daily payments?"
+    ];
+  }
+  if (c.includes("nostr") || c.includes("npub") || c.includes("nsec")) {
+    return [
+      "Why should I never share my nsec key?",
+      "What are Nostr relays and how do they store notes?",
+      "How do Nostr zaps work over Lightning?"
+    ];
+  }
+  if (c.includes("coinjoin") || c.includes("payjoin") || c.includes("mix")) {
+    return [
+      "What is Whirlpool CoinJoin?",
+      "How does PayJoin (BIP 78) break change analysis?",
+      "How much does CoinJoin mixing cost?"
+    ];
+  }
+
+  return [
+    "What is a UTXO?",
+    "How does address reuse affect privacy?",
+    "What is Taproot (P2TR)?"
+  ];
+}
+
 function Assistant({ activeReport }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.onerror = (err) => {
+        setIsListening(false);
+        setError(`Voice recognition note: ${err.error || "Speech input ended."}`);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!speechSupported) {
+      setError("Speech recognition is not supported in this browser environment. Please type your query.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      setError("");
+      try {
+        recognitionRef.current?.start();
+      } catch (err) {
+        setIsListening(false);
+      }
+    }
+  };
 
   const submitQuestion = async (qText) => {
     const cleanQuestion = qText.trim();
@@ -66,40 +169,74 @@ function Assistant({ activeReport }) {
   };
 
   return (
-    <main className="page">
-      <div className="page-header">
-        <p className="section-label">AI EDUCATION & ANALYSIS</p>
-        <h1>Bitcoin / Nostr AI Assistant</h1>
-        <p>
-          Ask any question about Bitcoin transactions, privacy heuristics, UTXOs, PSBTs, or Nostr protocols.
-        </p>
-      </div>
-
-      <div className="chat-card">
-        {activeReport && (
-          <div className="active-report-banner">
-            <span>🔗 Active Analysis Context Loaded:</span>
-            <code>{activeReport.address}</code>
-            <span className="banner-score">Score: {activeReport.score}/100 ({activeReport.rating})</span>
+    <main className="page assistant-page-compact">
+      {/* Primary Focus: Chat Card Focused at Top */}
+      <div className="chat-card top-focused-chat">
+        <div className="compact-header-bar">
+          <div className="header-left">
+            <span className="ai-status-pulse">● LIVE AI ASSISTANT</span>
+            <h2>Bitcoin / Nostr Grounded AI</h2>
           </div>
-        )}
 
-        {messages.length === 0 && (
-          <div className="chat-welcome-section">
-            <div className="chat-empty">
-              <div className="chat-icon">✦</div>
-              <h2>Grounded AI Knowledge & Diagnostic Assistant</h2>
-              <p>Ask any custom question below or click a suggested prompt to explore:</p>
+          {activeReport && (
+            <div className="active-report-tag">
+              <span>🔗 Active Address:</span>
+              <code>{activeReport.address.slice(0, 10)}...</code>
+              <span className="tag-score">{activeReport.score}/100</span>
             </div>
+          )}
+        </div>
 
-            {activeReport && (
+        <div className="messages">
+          {messages.length === 0 && (
+            <div className="chat-welcome-section">
+              <div className="chat-empty">
+                <div className="chat-icon">✦</div>
+                <h2>Ask Any Question & Receive Grounded Guidance</h2>
+                <p>Type below, click a suggested topic, or tap the microphone icon to speak your request.</p>
+              </div>
+
+              {activeReport && (
+                <div className="suggested-category">
+                  <div className="category-title">🔍 ACTIVE ADDRESS DIAGNOSTICS</div>
+                  <div className="suggested-questions-grid">
+                    {ANALYSIS_QUESTIONS.map((sq, idx) => (
+                      <button
+                        key={idx}
+                        className="suggested-chip analysis"
+                        onClick={() => handleChipClick(sq)}
+                        disabled={loading}
+                      >
+                        ⚡ {sq}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="suggested-category">
-                <div className="category-title">🔍 ACTIVE ANALYSIS PROMPTS</div>
+                <div className="category-title">₿ BITCOIN & PRIVACY CONCEPTS</div>
                 <div className="suggested-questions-grid">
-                  {ANALYSIS_QUESTIONS.map((sq, idx) => (
+                  {BITCOIN_QUESTIONS.map((sq, idx) => (
                     <button
                       key={idx}
-                      className="suggested-chip analysis"
+                      className="suggested-chip"
+                      onClick={() => handleChipClick(sq)}
+                      disabled={loading}
+                    >
+                      💡 {sq}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="suggested-category">
+                <div className="category-title">🟣 NOSTR PROTOCOL CONCEPTS</div>
+                <div className="suggested-questions-grid">
+                  {NOSTR_QUESTIONS.map((sq, idx) => (
+                    <button
+                      key={idx}
+                      className="suggested-chip nostr"
                       onClick={() => handleChipClick(sq)}
                       disabled={loading}
                     >
@@ -108,43 +245,9 @@ function Assistant({ activeReport }) {
                   ))}
                 </div>
               </div>
-            )}
-
-            <div className="suggested-category">
-              <div className="category-title">₿ BITCOIN & PRIVACY CONCEPTS</div>
-              <div className="suggested-questions-grid">
-                {BITCOIN_QUESTIONS.map((sq, idx) => (
-                  <button
-                    key={idx}
-                    className="suggested-chip"
-                    onClick={() => handleChipClick(sq)}
-                    disabled={loading}
-                  >
-                    💡 {sq}
-                  </button>
-                ))}
-              </div>
             </div>
+          )}
 
-            <div className="suggested-category">
-              <div className="category-title">🟣 NOSTR PROTOCOL CONCEPTS</div>
-              <div className="suggested-questions-grid">
-                {NOSTR_QUESTIONS.map((sq, idx) => (
-                  <button
-                    key={idx}
-                    className="suggested-chip nostr"
-                    onClick={() => handleChipClick(sq)}
-                    disabled={loading}
-                  >
-                    ⚡ {sq}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="messages">
           {messages.map((message, index) => (
             <div className={`message ${message.role}`} key={index}>
               <div className="message-label">
@@ -167,6 +270,25 @@ function Assistant({ activeReport }) {
                   </div>
                 </div>
               )}
+
+              {/* Recommended Next Questions After Assistant Response */}
+              {message.role === "assistant" && (
+                <div className="followup-questions-section">
+                  <div className="followup-title">💡 RECOMMENDED NEXT QUESTIONS:</div>
+                  <div className="followup-chips-row">
+                    {getRecommendedFollowUpQuestions(message.content, activeReport).map((fq, idx) => (
+                      <button
+                        key={idx}
+                        className="followup-chip"
+                        onClick={() => handleChipClick(fq)}
+                        disabled={loading}
+                      >
+                        ➔ {fq}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
@@ -174,7 +296,7 @@ function Assistant({ activeReport }) {
             <div className="message assistant">
               <div className="message-label">🤖 Assistant</div>
               <div className="typing">
-                <span className="typing-dot">.</span> Processing query against knowledge base and blockchain context...
+                <span className="typing-dot">.</span> Searching knowledge base and processing your query...
               </div>
             </div>
           )}
@@ -197,13 +319,23 @@ function Assistant({ activeReport }) {
           </div>
         )}
 
-        <form className="chat-input" onSubmit={handleSubmit}>
+        <form className="chat-input voice-enhanced-input" onSubmit={handleSubmit}>
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask any question about Bitcoin, privacy heuristics, UTXOs, PSBTs, or Nostr..."
+            placeholder={isListening ? "Listening... Speak your query now..." : "Ask any question about Bitcoin, UTXOs, PSBTs, or Nostr..."}
             disabled={loading}
           />
+
+          <button
+            type="button"
+            className={`mic-button ${isListening ? "listening" : ""}`}
+            onClick={toggleListening}
+            title={isListening ? "Listening... Click to stop" : "Click to speak query"}
+            disabled={loading}
+          >
+            {isListening ? "🔴" : "🎙️"}
+          </button>
 
           <button type="submit" disabled={loading || !question.trim()}>
             {loading ? "..." : "Ask Assistant"}
