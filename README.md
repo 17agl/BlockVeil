@@ -1,4 +1,4 @@
-#BlockVeil
+# BlockVeil
 (₿ Bitcoin Privacy Assistant)
 
 > An AI-powered Bitcoin privacy analysis suite, RAG educational assistant, and interactive transaction visualizer built for Bitcoiners and Nostr users.
